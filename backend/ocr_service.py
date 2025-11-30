@@ -94,8 +94,21 @@ class OCRService:
             attn_impl = load_params.get('attn_implementation', 'eager')
             use_safetensors = load_params.get('use_safetensors', True)
 
+            # 先加载模型配置并修改 attention 实现方式
+            from transformers import AutoConfig
+            model_config = AutoConfig.from_pretrained(
+                load_path,
+                trust_remote_code=trust_remote_code
+            )
+
+            # 强制覆盖 attention 实现，禁用 FlashAttention2
+            if hasattr(model_config, '_attn_implementation'):
+                model_config._attn_implementation = attn_impl
+                print(f"🔧 覆盖模型配置: _attn_implementation={attn_impl}")
+
             self.model = AutoModel.from_pretrained(
                 load_path,
+                config=model_config,
                 attn_implementation=attn_impl,
                 trust_remote_code=trust_remote_code,
                 use_safetensors=use_safetensors
