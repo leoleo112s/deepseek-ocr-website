@@ -17,15 +17,15 @@ model:
   
   # 本地模型配置
   local:
-    model_path: "D:\\models\\deepseek-ocr\\"   # D:\\models\\deepseek-ocr\\
-  
+    model_path: "/Users/towns/models/DeepSeek-OCR/"
+
   # 通用模型加载参数
   load_params:
     trust_remote_code: true
     use_safetensors: true
-    attn_implementation: "flash_attention_2"
-    torch_dtype: "bfloat16"  # "float32" | "float16" | "bfloat16"
-    device: "cuda"  # "cuda" | "cpu"
+    attn_implementation: "eager"  # "flash_attention_2" | "sdpa" | "eager" (macOS使用eager)
+    torch_dtype: "float32"  # "float32" | "float16" | "bfloat16" (macOS CPU使用float32)
+    device: "cpu"  # "cuda" | "cpu" (macOS使用cpu)
     cuda_visible_devices: "0"  # GPU 设备ID，多卡用逗号分隔 "0,1"
 
 # 服务配置

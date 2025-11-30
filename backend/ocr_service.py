@@ -91,12 +91,12 @@ class OCRService:
             
             # 加载模型
             print(f"🤖 加载模型...")
-            attn_impl = load_params.get('attn_implementation', 'flash_attention_2')
+            attn_impl = load_params.get('attn_implementation', 'eager')
             use_safetensors = load_params.get('use_safetensors', True)
-            
+
             self.model = AutoModel.from_pretrained(
                 load_path,
-                _attn_implementation=attn_impl,
+                attn_implementation=attn_impl,
                 trust_remote_code=trust_remote_code,
                 use_safetensors=use_safetensors
             )
