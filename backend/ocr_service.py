@@ -138,7 +138,16 @@ class OCRService:
             self._ready = True
             print(f"{'='*60}")
             print(f"✅ 模型加载成功！")
-            print(f"{'='*60}\n")
+            print(f"{'='*60}")
+
+            # 性能提示
+            if device == 'cpu':
+                print(f"\n⚠️  性能提示:")
+                print(f"   - 当前使用 CPU 模式，推理速度较慢（单图约 1-5 分钟）")
+                print(f"   - 建议使用 Tiny 模式（512×512）以获得最佳性能")
+                print(f"   - 预处理图片：压缩到 800-1200px 宽度可加速推理")
+                print(f"   - 详细优化指南：查看 PERFORMANCE_OPTIMIZATION.md")
+            print()
             
         except Exception as e:
             print(f"\n❌ 模型加载失败: {e}")
@@ -403,18 +412,28 @@ class OCRService:
                 # 创建线程池用于同步推理
                 import asyncio
                 import concurrent.futures
+                import time
                 loop = asyncio.get_event_loop()
                 executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+                # 提示用户等待时间
+                device = load_params.get('device', 'cpu')
+                if device == 'cpu':
+                    print(f"\n⏳ CPU 模式推理 PDF（{len(image_paths)} 页），每页约需 1-5 分钟...")
+                    print(f"💡 提示：总耗时约 {len(image_paths) * 2} 分钟，请耐心等待")
+
                 try:
                     for idx, img_path in enumerate(image_paths):
                         _check_cancel()
-                        print(f"\nProcessing page {idx + 1}/{len(image_paths)}...")
+                        print(f"\n{'='*60}")
+                        print(f"📄 Processing page {idx + 1}/{len(image_paths)}...")
+                        print(f"{'='*60}")
                         print(f"Prompt: {prompt[:100]}...")
-                        
+
                         # 为每一页创建独立的输出目录
                         page_output_dir = os.path.join(output_path, f"page_{idx + 1}")
                         os.makedirs(page_output_dir, exist_ok=True)
-                        
+
                         # 在线程池中运行同步推理，避免阻塞事件循环
                         def sync_infer():
                             return self.model.infer(
@@ -429,8 +448,9 @@ class OCRService:
                                 test_compress=False,
                                 cancel_event=thread_cancel_event
                             )
-                        
-                        print(f"⏳ Starting async inference for page {idx + 1}...")
+
+                        page_start = time.time()
+                        print(f"⏰ Page {idx + 1} 推理开始: {time.strftime('%H:%M:%S')}")
                         try:
                             result = await loop.run_in_executor(executor, sync_infer)
                         except asyncio.CancelledError:
@@ -439,7 +459,9 @@ class OCRService:
                             if "inference_cancelled" in str(infer_error).lower():
                                 raise asyncio.CancelledError()
                             raise
-                        print(f"⏳ Inference completed for page {idx + 1}")
+
+                        page_elapsed = time.time() - page_start
+                        print(f"✅ Page {idx + 1} 推理完成，耗时: {page_elapsed:.2f} 秒")
                     
                         print(f"📋 Page {idx + 1} infer result type: {type(result)}")
                         print(f"📋 Page {idx + 1} infer result: {result}")
@@ -548,11 +570,22 @@ class OCRService:
                 print(f"  Base size: {mode_params['base_size']}")
                 print(f"  Image size: {mode_params['image_size']}")
                 print(f"  Crop mode: {mode_params['crop_mode']}")
+
+                # 提示用户等待时间
+                device = load_params.get('device', 'cpu')
+                if device == 'cpu':
+                    print(f"\n⏳ CPU 模式推理中，这可能需要 1-5 分钟，请耐心等待...")
+                    print(f"💡 提示：首次推理会更慢，后续推理会快一些")
+
                 os.makedirs(output_path, exist_ok=True)
-                
+
                 _check_cancel()
 
                 try:
+                    import time
+                    start_time = time.time()
+                    print(f"⏰ 推理开始时间: {time.strftime('%H:%M:%S')}")
+
                     result = self.model.infer(
                         self.tokenizer,
                         prompt=prompt,
@@ -565,6 +598,9 @@ class OCRService:
                         test_compress=False,
                         cancel_event=thread_cancel_event
                     )
+
+                    elapsed_time = time.time() - start_time
+                    print(f"⏱️  推理完成，耗时: {elapsed_time:.2f} 秒")
                 except RuntimeError as infer_error:
                     if "inference_cancelled" in str(infer_error).lower():
                         raise asyncio.CancelledError()
